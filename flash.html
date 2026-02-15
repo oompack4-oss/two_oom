@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Flash System</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/esptool-js@0.4.0/bundle.js"></script>
+</head>
+<body style="background:#1a1a1a; color:white; text-align:center; font-family:sans-serif; padding:50px;">
+    <h1>🚀 ระบบติดตั้ง ESP32</h1>
+    <div id="status" style="font-size:20px; color:#00f2ff; margin:20px;">🔴 รอการเชื่อมต่อ...</div>
+    <button id="btn" style="padding:20px 40px; font-size:20px; cursor:pointer; background:#00f2ff; border:none; border-radius:10px;">1. เชื่อมต่อบอร์ด</button>
+
+    <script>
+        document.getElementById('btn').onclick = async () => {
+            try {
+                // เช็คว่าตัวช่วยมาหรือยัง
+                const esp = window.esptooljs || window.esptool;
+                if (!esp) { 
+                    alert("ตัวช่วยยังไม่โหลดนาย! ลองเช็คเน็ตแล้วกด F5 นะ"); 
+                    return; 
+                }
+
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                
+                const transport = new esp.Transport(port);
+                const esploader = new esp.ESPLoader(transport, 115200);
+                
+                document.getElementById('status').innerText = "⏳ กำลังทักทายบอร์ด... (กดปุ่ม BOOT ค้างไว้เลยนาย!)";
+                await esploader.main();
+                
+                document.getElementById('status').innerText = "✅ เชื่อมต่อสำเร็จ! นายกดติดตั้งได้เลย (ปุ่มจะมาเร็วๆ นี้)";
+                document.getElementById('status').style.color = "#00ff00";
+            } catch (e) {
+                alert("พลาดตรงนี้: " + e.message);
+            }
+        };
+    </script>
+</body>
+</html>
