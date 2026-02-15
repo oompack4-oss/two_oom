@@ -1,38 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESP32 Flash System</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://unpkg.com/esptool-js@0.4.0/bundle.js"></script>
+    <title>ESP32 Installer By OOM</title>
+    <script src="https://cdn.jsdelivr.net/npm/esptool-js@0.4.0/bundle.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; padding: 50px; }
+        .card { background: #2a2a2a; padding: 30px; border-radius: 20px; display: inline-block; border: 2px solid #00f2ff; }
+        #status { font-size: 18px; color: #00f2ff; margin: 20px; }
+        .btn { padding: 15px 30px; font-size: 18px; cursor: pointer; border-radius: 10px; border: none; font-weight: bold; }
+        #connect-btn { background: #00f2ff; color: black; }
+        #flash-btn { background: #ff00ff; color: white; display: none; }
+    </style>
 </head>
-<body style="background:#1a1a1a; color:white; text-align:center; font-family:sans-serif; padding:50px;">
-    <h1>🚀 ระบบติดตั้ง ESP32</h1>
-    <div id="status" style="font-size:20px; color:#00f2ff; margin:20px;">🔴 รอการเชื่อมต่อ...</div>
-    <button id="btn" style="padding:20px 40px; font-size:20px; cursor:pointer; background:#00f2ff; border:none; border-radius:10px;">1. เชื่อมต่อบอร์ด</button>
+<body>
+    <div class="card">
+        <h1>🚀 ESP32 Web Installer</h1>
+        <p id="status">🔴 สถานะ: รอการเชื่อมต่อ</p>
+        <button id="connect-btn" class="btn">1. เชื่อมต่อบอร์ด</button>
+        <button id="flash-btn" class="btn">2. เริ่มติดตั้งระบบ</button>
+    </div>
 
     <script>
-        document.getElementById('btn').onclick = async () => {
-            try {
-                // เช็คว่าตัวช่วยมาหรือยัง
-                const esp = window.esptooljs || window.esptool;
-                if (!esp) { 
-                    alert("ตัวช่วยยังไม่โหลดนาย! ลองเช็คเน็ตแล้วกด F5 นะ"); 
-                    return; 
-                }
+        let esploader;
+        
+        // ฟังก์ชันเช็คว่าตัวช่วย (Library) พร้อมไหม
+        function checkLib() {
+            return window.esptooljs || window.esptool;
+        }
 
+        document.getElementById('connect-btn').onclick = async () => {
+            const lib = checkLib();
+            if (!lib) {
+                alert("ตัวช่วยยังไม่มา! ลองรีเฟรชหน้าเว็บอีกรอบครับนาย");
+                return;
+            }
+
+            try {
                 const port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
                 
-                const transport = new esp.Transport(port);
-                const esploader = new esp.ESPLoader(transport, 115200);
+                const transport = new lib.Transport(port);
+                esploader = new lib.ESPLoader(transport, 115200);
                 
-                document.getElementById('status').innerText = "⏳ กำลังทักทายบอร์ด... (กดปุ่ม BOOT ค้างไว้เลยนาย!)";
+                document.getElementById('status').innerText = "⏳ กำลังเชื่อมต่อ... (กดปุ่ม BOOT ค้างไว้ด้วยครับ)";
                 await esploader.main();
                 
-                document.getElementById('status').innerText = "✅ เชื่อมต่อสำเร็จ! นายกดติดตั้งได้เลย (ปุ่มจะมาเร็วๆ นี้)";
+                document.getElementById('status').innerText = "✅ เชื่อมต่อสำเร็จ! พร้อมฟลัชแล้ว";
                 document.getElementById('status').style.color = "#00ff00";
+                document.getElementById('connect-btn').style.display = "none";
+                document.getElementById('flash-btn').style.display = "inline-block";
             } catch (e) {
-                alert("พลาดตรงนี้: " + e.message);
+                alert("การเชื่อมต่อผิดพลาด: " + e.message);
+            }
+        };
+
+        document.getElementById('flash-btn').onclick = async () => {
+            try {
+                const firmwareUrl = "https://raw.githubusercontent.com/oompack4-oss/esp32-firmware/main/sketch_feb6a.ino.bin";
+                document.getElementById('status').innerText = "⏳ กำลังโหลดไฟล์และติดตั้ง... ห้ามถอดสาย!";
+                
+                const response = await fetch(firmwareUrl);
+                const contents = await response.arrayBuffer();
+
+                await esploader.writeFlash({
+                    fileArray: [{ data: contents, address: 0x1000 }],
+                    flashSize: 'keep', eraseAll: false, compress: true,
+                    reportProgress: (fileIndex, written, total) => {
+                        const prog = Math.round((written / total) * 100);
+                        document.getElementById('status').innerText = "⚡ ติดตั้งไปแล้ว " + prog + "%";
+                    }
+                });
+
+                document.getElementById('status').innerText = "🎉 เสร็จแล้วนาย! บอร์ดใช้งานได้เลย";
+                document.getElementById('status').style.color = "#ffff00";
+            } catch (e) {
+                alert("เกิดข้อผิดพลาดตอนฟลัช: " + e.message);
             }
         };
     </script>
